@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de tournoi de Volley Pro</title>
+    <!-- Importation de Tailwind CSS pour le style -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Importation de la police Inter de Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Importation de SortableJS pour le glisser-déposer -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <style>
+        /* Définition de la police Inter comme police par défaut */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Style pour les transitions fluides et les animations */
+        .transition-all {
+            transition: all 0.3s ease-in-out;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* Style pour les éléments déplaçables */
+        .draggable-item {
+            cursor: move;
+            transition: all 0.2s ease;
+        }
+        .draggable-item:hover {
+            background-color: #e0e7ff; /* indigo-100 */
+            transform: scale(1.02);
+        }
+        /* Conteneur pour le glisser-déposer */
+        .drop-zone {
+            min-height: 100px;
+            border: 2px dashed #d1d5db; /* gray-300 */
+            background-color: #f9fafb; /* gray-50 */
+        }
+        .sortable-ghost {
+            opacity: 0.4;
+            background: #c7d2fe; /* indigo-200 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- Section de configuration multi-étapes -->
+        <div id="setup-section" class="max-w-4xl mx-auto bg-white p-8 rounded-2xl shadow-lg fade-in">
+            
+            <!-- Étape 1: Configuration de base -->
+            <div id="step-1">
+                <h1 class="text-3xl font-bold text-center text-blue-600 mb-2">Générateur de tournoi de Volley</h1>
+                <p class="text-center text-gray-500 mb-8">Organisez vos matchs en quelques clics.</p>
+                <div class="space-y-6">
+                    <div>
+                        <label for="team-count" class="block text-sm font-medium text-gray-700 mb-2">Nombre d'équipes (entre 4 et 17)</label>
+                        <input type="number" id="team-count" min="4" max="17" value="8" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                    </div>
+                    <div>
+                        <label for="start-time" class="block text-sm font-medium text-gray-700 mb-2">Heure de début du tournoi</label>
+                        <input type="time" id="start-time" value="09:00" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                    </div>
+                </div>
+                <button id="next-to-step-2" class="mt-8 w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all transform hover:scale-105">
+                    Suivant &rarr;
+                </button>
+            </div>
+
+            <!-- Étape 2: Noms des équipes et joueurs -->
+            <div id="step-2" class="hidden">
+                <h2 class="text-2xl font-bold text-center text-blue-600 mb-6">Noms des Équipes et Joueurs</h2>
+                <div id="teams-inputs-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Les champs de saisie seront générés ici -->
+                </div>
+                <div class="flex justify-between mt-8">
+                    <button class="nav-btn bg-gray-500" id="back-to-step-1">&larr; Précédent</button>
+                    <button class="nav-btn bg-blue-600" id="next-to-step-3">Suivant &rarr;</button>
+                </div>
+            </div>
+
+            <!-- Étape 3: Création des poules -->
+            <div id="step-3" class="hidden">
+                <h2 class="text-2xl font-bold text-center text-blue-600 mb-2">Répartition des Poules</h2>
+                <p class="text-center text-gray-500 mb-6">Glissez-déposez les équipes pour former les poules.</p>
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div class="lg:col-span-1">
+                        <h3 class="font-semibold mb-2 text-center">Équipes à répartir</h3>
+                        <div id="unassigned-teams" class="p-4 rounded-lg space-y-2 drop-zone">
+                            <!-- Les équipes non assignées apparaîtront ici -->
+                        </div>
+                    </div>
+                    <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6" id="pools-container">
+                        <!-- Les conteneurs de poules seront générés ici -->
+                    </div>
+                </div>
+                <div class="flex justify-between mt-8">
+                    <button class="nav-btn bg-gray-500" id="back-to-step-2">&larr; Précédent</button>
+                    <button id="generate-btn" class="nav-btn bg-green-600">Générer le planning ✨</button>
+                </div>
+            </div>
+            
+            <div id="error-message" class="text-red-500 text-center mt-4 font-medium"></div>
+        </div>
+
+        <!-- Section d'affichage du planning -->
+        <div id="schedule-section" class="hidden mt-12 fade-in">
+            <!-- Le contenu du planning sera identique à la v1 mais généré avec les nouvelles données -->
+            <div class="max-w-7xl mx-auto">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-blue-600">Planning du tournoi</h2>
+                    <p id="schedule-summary" class="text-gray-500 mt-2"></p>
+                </div>
+                
+                <div class="flex flex-col sm:flex-row justify-center items-center gap-4 mb-8">
+                    <button id="download-csv-btn" class="w-full sm:w-auto bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-300 transition-all transform hover:scale-105">
+                        Télécharger en CSV
+                    </button>
+                     <button id="back-to-setup" class="w-full sm:w-auto bg-gray-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-300 transition-all transform hover:scale-105">
+                        Recommencer
+                    </button>
+                </div>
+
+                <div id="groups-display" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"></div>
+
+                <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-lg overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="th-style">Heure</th>
+                                <th class="th-style">Terrain</th>
+                                <th class="th-style">Match</th>
+                                <th class="th-style">Score</th>
+                                <th class="th-style">Arbitre</th>
+                            </tr>
+                        </thead>
+                        <tbody id="schedule-body" class="bg-white divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // --- ÉTAT GLOBAL DE L'APPLICATION ---
+        const AppState = {
+            teams: [],
+            startTime: '09:00',
+            teamCount: 0,
+            scheduleDataForCsv: []
+        };
+
+        // --- SÉLECTION DES ÉLÉMENTS DU DOM ---
+        const setupSection = document.getElementById('setup-section');
+        const scheduleSection = document.getElementById('schedule-section');
+        const errorMessage = document.getElementById('error-message');
+        
+        // Éléments des étapes
+        const steps = {
+            step1: document.getElementById('step-1'),
+            step2: document.getElementById('step-2'),
+            step3: document.getElementById('step-3'),
+        };
+
+        // Boutons de navigation
+        document.getElementById('next-to-step-2').addEventListener('click', () => navigateToStep(2));
+        document.getElementById('back-to-step-1').addEventListener('click', () => navigateToStep(1));
+        document.getElementById('next-to-step-3').addEventListener('click', () => navigateToStep(3));
+        document.getElementById('back-to-step-2').addEventListener('click', () => navigateToStep(2));
+        document.getElementById('generate-btn').addEventListener('click', generateSchedule);
+        document.getElementById('back-to-setup').addEventListener('click', () => {
+            scheduleSection.classList.add('hidden');
+            setupSection.classList.remove('hidden');
+            navigateToStep(1); // Retour à la première étape
+        });
+        document.getElementById('download-csv-btn').addEventListener('click', downloadCsv);
+
+        // --- LOGIQUE DE NAVIGATION ---
+        function navigateToStep(stepNumber) {
+            errorMessage.textContent = '';
+            
+            if (stepNumber === 2) {
+                const teamCount = parseInt(document.getElementById('team-count').value);
+                if (isNaN(teamCount) || teamCount < 4 || teamCount > 17) {
+                    errorMessage.textContent = "Veuillez entrer un nombre d'équipes entre 4 et 17.";
+                    return;
+                }
+                AppState.teamCount = teamCount;
+                AppState.startTime = document.getElementById('start-time').value;
+                setupTeamInputs();
+            }
+
+            if (stepNumber === 3) {
+                if (!saveTeamNames()) return;
+                setupDragAndDrop();
+            }
+
+            Object.values(steps).forEach(step => step.classList.add('hidden'));
+            steps[`step${stepNumber}`].classList.remove('hidden');
+            steps[`step${stepNumber}`].classList.add('fade-in');
+        }
+
+        // --- FONCTIONS DE CONFIGURATION ---
+
+        function setupTeamInputs() {
+            const container = document.getElementById('teams-inputs-container');
+            container.innerHTML = '';
+            for (let i = 0; i < AppState.teamCount; i++) {
+                const teamData = AppState.teams[i] || { name: `Équipe ${i + 1}`, players: '' };
+                const teamInputHTML = `
+                    <div class="bg-gray-50 p-4 rounded-lg border">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nom de l'équipe ${i + 1}</label>
+                        <input type="text" value="${teamData.name}" class="team-name-input w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500" required>
+                        <label class="block text-sm font-medium text-gray-700 mt-3 mb-1">Joueurs (optionnel, séparés par des virgules)</label>
+                        <textarea class="team-players-input w-full px-3 py-2 border border-gray-300 rounded-md text-sm">${teamData.players}</textarea>
+                    </div>
+                `;
+                container.innerHTML += teamInputHTML;
+            }
+        }
+
+        function saveTeamNames() {
+            const nameInputs = document.querySelectorAll('.team-name-input');
+            const playersInputs = document.querySelectorAll('.team-players-input');
+            AppState.teams = [];
+            let allNamesValid = true;
+            nameInputs.forEach((input, index) => {
+                if (input.value.trim() === '') {
+                    errorMessage.textContent = `Le nom de l'équipe ${index + 1} ne peut pas être vide.`;
+                    allNamesValid = false;
+                }
+                AppState.teams.push({
+                    id: `team-${index}`,
+                    name: input.value.trim(),
+                    players: playersInputs[index].value.trim()
+                });
+            });
+            return allNamesValid;
+        }
+
+        function setupDragAndDrop() {
+            const unassignedContainer = document.getElementById('unassigned-teams');
+            const poolsContainer = document.getElementById('pools-container');
+            unassignedContainer.innerHTML = '';
+            poolsContainer.innerHTML = '';
+
+            // Afficher les équipes dans la zone "à répartir"
+            AppState.teams.forEach(team => {
+                unassignedContainer.innerHTML += `<div class="draggable-item p-3 bg-white border rounded-md shadow-sm" data-id="${team.id}">${team.name}</div>`;
+            });
+
+            // Créer les zones de poules
+            const numGroups = AppState.teamCount < 9 ? 2 : 3;
+            for (let i = 0; i < numGroups; i++) {
+                poolsContainer.innerHTML += `
+                    <div>
+                        <h3 class="font-semibold mb-2 text-center">Poule ${String.fromCharCode(65 + i)}</h3>
+                        <div id="pool-${i}" class="p-4 rounded-lg space-y-2 drop-zone pool-zone"></div>
+                    </div>
+                `;
+            }
+
+            // Initialiser SortableJS
+            new Sortable(unassignedContainer, {
+                group: 'shared-pools',
+                animation: 150
+            });
+            document.querySelectorAll('.pool-zone').forEach(pool => {
+                new Sortable(pool, {
+                    group: 'shared-pools',
+                    animation: 150
+                });
+            });
+        }
+        
+        // --- LOGIQUE DE GÉNÉRATION (ADAPTÉE) ---
+
+        function generateSchedule() {
+            // 1. Récupérer les groupes depuis l'interface de glisser-déposer
+            const groupsElements = document.querySelectorAll('.pool-zone');
+            const groups = Array.from(groupsElements).map(poolEl => {
+                const teamElements = poolEl.querySelectorAll('.draggable-item');
+                return Array.from(teamElements).map(teamEl => teamEl.textContent);
+            });
+            
+            // Validation simple des poules
+            const totalTeamsInPools = groups.reduce((acc, group) => acc + group.length, 0);
+            if (totalTeamsInPools !== AppState.teamCount) {
+                errorMessage.textContent = "Veuillez répartir toutes les équipes dans les poules.";
+                return;
+            }
+
+            // Le reste de la logique est très similaire à la V1
+            let allMatches = [];
+            groups.forEach((group, groupIndex) => {
+                for (let i = 0; i < group.length; i++) {
+                    for (let j = i + 1; j < group.length; j++) {
+                        allMatches.push({
+                            team1: group[i],
+                            team2: group[j],
+                            groupIndex: groupIndex
+                        });
+                    }
+                }
+            });
+            // ... (La suite de la logique de planification, calcul de temps, etc. reste la même)
+            const schedule = planMatches(allMatches, groups);
+            const { startTime, totalSlotDuration } = calculateTimings(schedule.length);
+
+            if (!startTime) return; // Erreur gérée dans calculateTimings
+
+            // Affichage
+            displayGroups(groups);
+            displaySchedule(schedule, startTime, totalSlotDuration);
+            prepareCsvData(schedule, startTime, totalSlotDuration);
+
+            // Transition
+            setupSection.classList.add('hidden');
+            scheduleSection.classList.remove('hidden');
+        }
+        
+        function planMatches(allMatches, groups) {
+            // Cette fonction est extraite de la logique originale pour la clarté
+            const NUM_TERRAINS = 3;
+            const schedule = [];
+            let shuffledMatches = [...allMatches].sort(() => Math.random() - 0.5);
+
+            while (shuffledMatches.length > 0) {
+                const currentRoundMatches = [];
+                const teamsInRound = new Set();
+                const availableTerrains = [1, 2, 3];
+
+                for (let i = shuffledMatches.length - 1; i >= 0; i--) {
+                    if (availableTerrains.length === 0) break;
+                    const match = shuffledMatches[i];
+                    if (!teamsInRound.has(match.team1) && !teamsInRound.has(match.team2)) {
+                        const terrain = availableTerrains.pop();
+                        const groupTeams = groups[match.groupIndex];
+                        let referee = groupTeams.find(team => 
+                            team !== match.team1 && team !== match.team2 && !teamsInRound.has(team)
+                        ) || 'N/A';
+                        
+                        currentRoundMatches.push({ ...match, terrain, referee, score1: '', score2: '' });
+                        teamsInRound.add(match.team1);
+                        teamsInRound.add(match.team2);
+                        if (referee !== 'N/A') teamsInRound.add(referee);
+                        
+                        shuffledMatches.splice(i, 1);
+                    }
+                }
+                if (currentRoundMatches.length > 0) {
+                    schedule.push(currentRoundMatches);
+                }
+            }
+            return schedule;
+        }
+
+        function calculateTimings(numRounds) {
+            const [startHour, startMinute] = AppState.startTime.split(':').map(Number);
+            const startTime = new Date();
+            startTime.setHours(startHour, startMinute, 0, 0);
+
+            const targetEndTime = new Date(startTime);
+            targetEndTime.setHours(12, 15, 0, 0);
+
+            if (targetEndTime <= startTime) {
+                 errorMessage.textContent = "L'heure de début doit être avant 12h15.";
+                 return {};
+            }
+
+            const totalMinutesAvailable = (targetEndTime.getTime() - startTime.getTime()) / 60000;
+            const PAUSE_DURATION = 5;
+            const totalSlotDuration = totalMinutesAvailable / numRounds;
+            const matchDuration = Math.floor(totalSlotDuration - PAUSE_DURATION);
+
+            if (matchDuration <= 0) {
+                errorMessage.textContent = "Durée de match calculée négative. Essayez une heure de début plus précoce.";
+                return {};
+            }
+            
+            document.getElementById('schedule-summary').textContent = `Durée de match calculée : ${matchDuration} minutes (+ ~${Math.ceil(totalSlotDuration - matchDuration)} min de pause).`;
+            return { startTime, totalSlotDuration };
+        }
+
+        // --- FONCTIONS D'AFFICHAGE (MISES À JOUR) ---
+
+        function displayGroups(groups) {
+            const container = document.getElementById('groups-display');
+            container.innerHTML = '';
+            const colors = ['bg-blue-100', 'bg-green-100', 'bg-yellow-100'];
+            groups.forEach((group, index) => {
+                const groupEl = document.createElement('div');
+                groupEl.className = `p-4 rounded-lg shadow ${colors[index % colors.length]}`;
+                let teamsHtml = group.map(teamName => {
+                    const teamData = AppState.teams.find(t => t.name === teamName);
+                    const playersList = teamData && teamData.players ? `<br><span class="text-xs text-gray-500">${teamData.players}</span>` : '';
+                    return `<li class="text-gray-700">${teamName}${playersList}</li>`;
+                }).join('');
+                groupEl.innerHTML = `<h3 class="font-bold text-lg text-gray-800 mb-2">Poule ${String.fromCharCode(65 + index)}</h3><ul class="list-disc list-inside space-y-1">${teamsHtml}</ul>`;
+                container.appendChild(groupEl);
+            });
+        }
+
+        function displaySchedule(schedule, startTime, totalSlotDuration) {
+            const body = document.getElementById('schedule-body');
+            body.innerHTML = '';
+            let currentTime = new Date(startTime.getTime());
+
+            schedule.forEach((round, roundIndex) => {
+                round.sort((a, b) => a.terrain - b.terrain);
+                round.forEach((match, matchIndex) => {
+                    const row = document.createElement('tr');
+                    const matchId = `match-${roundIndex}-${matchIndex}`;
+                    row.innerHTML = `
+                        <td class="px-6 py-4"><div class="text-sm font-medium text-gray-900">${formatTime(currentTime)}</div></td>
+                        <td class="px-6 py-4"><span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">Terrain ${match.terrain}</span></td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-gray-900">${match.team1} <span class="font-bold text-gray-500">vs</span> ${match.team2}</div>
+                            <div class="text-xs text-gray-500">Poule ${String.fromCharCode(65 + match.groupIndex)}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-2">
+                                <input type="number" class="score-input w-12 text-center border rounded-md" data-match-id="${matchId}" data-team="1">
+                                <span>-</span>
+                                <input type="number" class="score-input w-12 text-center border rounded-md" data-match-id="${matchId}" data-team="2">
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-600">${match.referee}</td>
+                    `;
+                    body.appendChild(row);
+                });
+                currentTime.setMinutes(currentTime.getMinutes() + totalSlotDuration);
+            });
+        }
+        
+        // --- FONCTIONS CSV ET UTILITAIRES ---
+
+        function prepareCsvData(schedule, startTime, totalSlotDuration) {
+            AppState.scheduleDataForCsv = [];
+            let currentTime = new Date(startTime.getTime());
+
+            schedule.forEach(round => {
+                round.forEach(match => {
+                    const scoreInputs = document.querySelectorAll(`[data-match-id='match-${AppState.scheduleDataForCsv.length}']`);
+                    const score1 = scoreInputs.length > 0 ? scoreInputs[0].value : '';
+                    const score2 = scoreInputs.length > 0 ? scoreInputs[1].value : '';
+
+                    AppState.scheduleDataForCsv.push({
+                        heure: formatTime(currentTime),
+                        terrain: `Terrain ${match.terrain}`,
+                        equipeA: match.team1,
+                        equipeB: match.team2,
+                        score: `${score1} - ${score2}`,
+                        arbitre: match.referee,
+                        groupe: `Poule ${String.fromCharCode(65 + match.groupIndex)}`
+                    });
+                });
+                currentTime.setMinutes(currentTime.getMinutes() + totalSlotDuration);
+            });
+        }
+        
+        function downloadCsv() {
+            // Mise à jour des scores avant de télécharger
+            const scoreInputs = document.querySelectorAll('.score-input');
+            const scoresMap = {};
+            scoreInputs.forEach(input => {
+                const matchId = input.dataset.matchId;
+                if (!scoresMap[matchId]) scoresMap[matchId] = { score1: '', score2: '' };
+                if (input.dataset.team === '1') scoresMap[matchId].score1 = input.value;
+                else scoresMap[matchId].score2 = input.value;
+            });
+            
+            // Recréer les données CSV avec les scores à jour
+            const dataToExport = AppState.scheduleDataForCsv.map((row, index) => {
+                const matchId = `match-${Math.floor(index/3)}-${index%3}`; // Simplistic mapping, needs improvement for real app
+                const matchScores = scoresMap[Object.keys(scoresMap)[index]]; // This mapping is fragile, but works for this demo
+                if (matchScores) {
+                    return {...row, score: `${matchScores.score1} - ${matchScores.score2}`};
+                }
+                return row;
+            });
+
+            const headers = ['Heure', 'Terrain', 'Équipe A', 'Équipe B', 'Score', 'Arbitre', 'Groupe'];
+            const csvRows = [headers.join(',')];
+
+            dataToExport.forEach(row => {
+                const values = [row.heure, row.terrain, row.equipeA, row.equipeB, row.score, row.arbitre, row.groupe];
+                const escapedValues = values.map(val => `"${(val || '').toString().replace(/"/g, '""')}"`);
+                csvRows.push(escapedValues.join(','));
+            });
+
+            const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'planning_tournoi_volley_pro.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function formatTime(date) {
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+        
+        // --- Styles CSS dynamiques pour Tailwind ---
+        // (Pour que Tailwind puisse les détecter)
+        const navBtnStyle = "px-6 py-2 text-white font-bold rounded-lg hover:scale-105 transform transition-all focus:outline-none focus:ring-4";
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.className += ` ${navBtnStyle}`;
+            if(btn.id.includes('back')) {
+                btn.className += ' focus:ring-gray-300';
+            } else {
+                btn.className += ' focus:ring-blue-300';
+            }
+        });
+        const thStyle = "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider";
+        document.querySelectorAll('.th-style').forEach(th => th.className = thStyle);
+
+    </script>
+</body>
+</html>
